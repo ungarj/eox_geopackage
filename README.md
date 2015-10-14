@@ -2,15 +2,26 @@
 
 Extended Geopackage (*.gpkgx) storing a tile set pyramid while keeping the original pixel values.
 
-i.e. not limited to 8bit (as in PNG and JPEG) or lossy compression (JPEG).
+It shall not be limited to 8bit (as in PNG and JPEG) or use lossy compression (JPEG).
 
 ## variations
 
 ### save as numpy array
 * [insert numpy into sqlite3](http://stackoverflow.com/questions/18621513/python-insert-numpy-array-into-sqlite3-database)
+* [xray - labeled arrays](http://xray.readthedocs.org/en/stable/examples/quick-overview.html#indexing)
+
+pros:
+- time series storage
 
 ### save as TIFF
 * [OGC Tiled Elevation Extension (PDF)](https://www.google.at/url?sa=t&rct=j&q=&esrc=s&source=web&cd=4&sqi=2&ved=0CDAQFjADahUKEwiX6aX887zIAhVK7hoKHbfuBts&url=https%3A%2F%2Fportal.opengeospatial.org%2Ffiles%2F%3Fartifact_id%3D63289&usg=AFQjCNHoo85tj0neUFP9jmwBGs9dv6qmpA&sig2=XpINIwbEDLFJ_6Snyk5Ivg&bvm=bv.104819420,d.d2s&cad=rja)
+
+## to be researched
+* storing metadata masks in tiles as well
+
+## links
+
+* [GPKG in python](https://github.com/GitHubRGI/geopackage-python)
 
 ## schema
 
