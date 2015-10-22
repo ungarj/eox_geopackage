@@ -5,6 +5,8 @@ import os
 import argparse
 import numpy as np
 from sqlite3 import Binary as sbinary
+from datetime import datetime
+import zlib
 
 from utils_geopackage import *
 
@@ -17,7 +19,7 @@ def main(args):
     except:
         raise
     finally:
-        #os.remove(output_file)
+        os.remove(output_file)
         pass
 
 def run_tests(output_file):
@@ -78,23 +80,96 @@ def run_tests(output_file):
     except:
         raise
 
-    # Test insert data.
-    test_data = np.random.rand(256, 256)
+    # Performance test.
+    zoom = 10
+    tilesize = 10
+
+    # Uncompressed data.
+    # =================
+    print "inserting %s uncompresseed tiles..." %(tilesize*tilesize)
+    test_geopackage = EOGeopackage(output_file, "xray", 4326, overwrite=True, compression=None)
+    start = datetime.now()
+    for row in range(0, tilesize):
+        for col in range(0, tilesize):
+            test_data = np.random.randint(255, size=(255, 255))
+            test_geopackage.insert_tile(zoom, row, col, test_data)
+    finish = datetime.now()
+    tdelta = finish - start
+    seconds = tdelta.total_seconds()
+
+    # Get file size.
+    filestat = os.stat(output_file)
+    filesize = filestat.st_size
+    filesize_mb = filesize/1024
+    print "uncompressed filesize: %s KB (%s seconds)" %(filesize_mb, seconds)
+
+    # Test read data.
+    test_data = np.random.rand(255, 255)
     zoom, row, col = (3, 5, 7)
     try:
-        updated_geopackage.insert_tile(zoom, row, col, test_data)
+        test_geopackage.insert_tile(zoom, row, col, test_data)
         pass
     except:
         raise
-
-    # Read data.
     try:
-        test_read = updated_geopackage.get_tiledata(zoom, row, col)
-        print type(test_read)
+        test_read = test_geopackage.get_tiledata(zoom, row, col)
         assert isinstance(test_read, np.ndarray)
         assert test_read.all() == test_data.all()
     except:
         raise
+
+
+    # Comressed data.
+    # ===============
+    for compression in (
+        "blosclz",
+        "lz4",
+        "lz4hc",
+        "snappy",
+        "zlib"#
+        ):
+        print "inserting %s %s compressed tiles..." %(tilesize*tilesize, compression)
+        test_geopackage = EOGeopackage(
+            output_file,
+            "xray",
+            4326,
+            overwrite=True,
+            compression=compression
+            )
+        start = datetime.now()
+        zoom = 10
+        for row in range(0, tilesize):
+            for col in range(0, tilesize):
+                test_data = np.random.randint(255, size=(255, 255))
+                test_geopackage.insert_tile(zoom, row, col, test_data)
+        finish = datetime.now()
+        tdelta = finish - start
+        seconds = tdelta.total_seconds()
+
+        # Get file size.
+        filestat = os.stat(output_file)
+        filesize = filestat.st_size
+        filesize_mb = filesize/1024
+        print "%s compressed filesize: %s KB (%s seconds)" %(
+            compression,
+            filesize_mb,
+            seconds)
+
+        # Test read data.
+        test_data = np.random.rand(255, 255)
+        zoom, row, col = (3, 5, 7)
+        try:
+            test_geopackage.insert_tile(zoom, row, col, test_data)
+            pass
+        except:
+            raise
+        try:
+            test_read = test_geopackage.get_tiledata(zoom, row, col)
+            assert isinstance(test_read, np.ndarray)
+            assert test_read.all() == test_data.all()
+        except:
+            print type(test_read)
+            raise
 
 
 def schema_is_ok(geopackage):

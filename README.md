@@ -13,6 +13,9 @@ It shall not be limited to 8bit (as in PNG and JPEG) or use lossy compression (J
 pros:
 - time series storage
 
+cons:
+- no compression (i.e. 100 256x256 sized arrays take ca. 50MB disk space); try [blz](http://blz.pydata.org/blz-manual/index.html)
+
 ### save as TIFF
 * [OGC Tiled Elevation Extension (PDF)](https://www.google.at/url?sa=t&rct=j&q=&esrc=s&source=web&cd=4&sqi=2&ved=0CDAQFjADahUKEwiX6aX887zIAhVK7hoKHbfuBts&url=https%3A%2F%2Fportal.opengeospatial.org%2Ffiles%2F%3Fartifact_id%3D63289&usg=AFQjCNHoo85tj0neUFP9jmwBGs9dv6qmpA&sig2=XpINIwbEDLFJ_6Snyk5Ivg&bvm=bv.104819420,d.d2s&cad=rja)
 

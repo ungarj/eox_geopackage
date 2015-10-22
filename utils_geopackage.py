@@ -4,8 +4,11 @@
 
 from collections import OrderedDict
 from sqlite3 import connect
+import sqlite3
+import numpy as np
 import os
 import io
+import blosc
 
 class EOGeopackage():
     """
@@ -20,21 +23,41 @@ class EOGeopackage():
         file_path,
         data_type,
         projection,
-        overwrite=False
+        overwrite=False,
+        compression="blosclz"
         ):
         """
         Initializes geopackage file and creates EOGeopackage object.
+        Supported compressions (default=blosclz):
+         - blosclz
+         - lz4
+         - lz4hc
+         - snappy
+         - zlib
         """
         try:
             assert data_type in ("image/TIFF", "xray")
         except:
             raise
+        if compression:
+            try:
+                assert compression in (
+                    "blosclz",
+                    "lz4",
+                    "lz4hc",
+                    "snappy",
+                    "zlib"#
+                    )
+            except:
+                print "Unknown compression", compression
+                raise
         self.file_path = file_path
         self.data_type = data_type
         self.projection = projection
         self.overwrite = overwrite
         self.projection, self.overwrite
         self.db_connection = connect(self.file_path)
+        self.compression = compression
         self.__create_file(overwrite=overwrite)
 
 
@@ -106,12 +129,35 @@ class EOGeopackage():
                 raise
                 pass
 
+            # Tiles table.
+            if self.compression:
+                tiles_data_type = "TEXT"
+            else:
+                tiles_data_type = "ARRAY"
+            try:
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS tiles (
+                      id INTEGER PRIMARY KEY AUTOINCREMENT,
+                      zoom_level INTEGER NOT NULL,
+                      tile_column INTEGER NOT NULL,
+                      tile_row INTEGER NOT NULL,
+                      tile_data %s NOT NULL,
+                      UNIQUE (zoom_level, tile_column, tile_row)
+                    );
+                    """ %(tiles_data_type)
+                )
+            except:
+                raise
+
 
     def insert_tile(self, zoom, row, col, data):
-        if self.data_type == "xray":
-            print "hui"
         with self.db_connection as db_connection:
             cursor = db_connection.cursor()
+            compression = self.compression
+            if compression:
+                db_connection.text_factory = str
+                data_compressed = blosc.pack_array(data, cname=compression)
+                data = data_compressed
             cursor.execute("""
                 INSERT INTO tiles
                     (zoom_level, tile_row, tile_column, tile_data)
@@ -126,7 +172,12 @@ class EOGeopackage():
                 SELECT tile_data from tiles WHERE
                 zoom_level=? AND tile_row=? AND tile_column=?;
             """, (str(zoom), str(row), str(col)))
-            return cursor.fetchone()[0]
+            if self.compression:
+                data = blosc.unpack_array(cursor.fetchone()[0])
+            else:
+                data = cursor.fetchone()[0]
+            return data
+
 
     def __exit__(self, type, value, traceback):
         """Resource cleanup on destruction."""
@@ -146,8 +197,6 @@ def convert_array(text):
     out = io.BytesIO(text)
     out.seek(0)
     return np.load(out)
-import sqlite3
-import numpy as np
 # Converts np.array to TEXT when inserting
 sqlite3.register_adapter(np.ndarray, adapt_array)
 # Converts TEXT to np.array when selecting
@@ -247,17 +296,6 @@ sql_create_tables = OrderedDict([
       CONSTRAINT pk_ttm PRIMARY KEY (table_name, zoom_level),
       CONSTRAINT fk_tmm_table_name FOREIGN KEY (table_name) REFERENCES
         gpkg_contents(table_name)
-    );
-    """),
-    ("tiles",
-    """
-    CREATE TABLE IF NOT EXISTS tiles (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      zoom_level INTEGER NOT NULL,
-      tile_column INTEGER NOT NULL,
-      tile_row INTEGER NOT NULL,
-      tile_data ARRAY NOT NULL,
-      UNIQUE (zoom_level, tile_column, tile_row)
     );
     """)
     ])
