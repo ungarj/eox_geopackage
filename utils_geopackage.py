@@ -13,6 +13,22 @@ import blosc
 class EOGeopackage():
     """
     The EOGeopackage class helps to create and modify a EO Geopackage file.
+    Parameters:
+    - file_path: path to .gpkgx file to be created or modified
+    - data_type: either "image/TIFF" for standard 2D images or "xray" for
+      multidimensional arrays
+    - srs: please use 4326 (WGS84 Geographic Projection), support for 3857
+      (Google Spherical Mercator) will be added.
+    - overwrite: either False (just insert tiles which don't yet exist) or True
+      (delete source file first).
+    - compression: compression used.
+      - image/TIFF supported compressions: TBD
+      - xray supported compressions (default=lz4):
+        - blosclz
+        - lz4
+        - lz4hc
+        - snappy
+        - zlib
     """
 
     def __enter__(self):
@@ -22,18 +38,12 @@ class EOGeopackage():
         self,
         file_path,
         data_type,
-        projection,
+        srs,
         overwrite=False,
         compression="lz4"
         ):
         """
         Initializes geopackage file and creates EOGeopackage object.
-        Supported compressions (default=lz4):
-         - blosclz
-         - lz4
-         - lz4hc
-         - snappy
-         - zlib
         """
         try:
             assert data_type in ("image/TIFF", "xray")
@@ -53,9 +63,8 @@ class EOGeopackage():
                 raise
         self.file_path = file_path
         self.data_type = data_type
-        self.projection = projection
+        self.srs = srs
         self.overwrite = overwrite
-        self.projection, self.overwrite
         self.db_connection = connect(self.file_path)
         self.compression = compression
         self.__create_file(overwrite=overwrite)
@@ -71,7 +80,10 @@ class EOGeopackage():
             raise IOError
         if overwrite:
             os.remove(self.file_path)
-        self.db_connection = connect(self.file_path, detect_types=sqlite3.PARSE_DECLTYPES)
+        self.db_connection = connect(
+            self.file_path,
+            detect_types=sqlite3.PARSE_DECLTYPES
+            )
         self.__create_schema()
 
 
@@ -97,7 +109,7 @@ class EOGeopackage():
                         definition)
                     VALUES (4326, ?, 4326, ?, ?)
                     """,
-                    ("epsg", "WGS 84", ref_sys_wkt[self.projection])
+                    ("epsg", "WGS 84", ref_sys_wkt[self.srs])
                 )
             except:
                 print "Warning: EPSG definition already exists"
@@ -122,7 +134,7 @@ class EOGeopackage():
                     "tiles",
                     (self.data_type + " Raster Tiles"),
                     content_description,
-                    str(self.projection)
+                    str(self.srs)
                     )
                 )
             except:
@@ -158,20 +170,26 @@ class EOGeopackage():
                 db_connection.text_factory = str
                 data_compressed = blosc.pack_array(data, cname=compression)
                 data = data_compressed
-            cursor.execute("""
-                INSERT INTO tiles
-                    (zoom_level, tile_row, tile_column, tile_data)
-                    VALUES (?,?,?,?)
-            """, (zoom, row, col, data))
+            try:
+                cursor.execute("""
+                    INSERT INTO tiles
+                        (zoom_level, tile_row, tile_column, tile_data)
+                        VALUES (?,?,?,?)
+                """, (zoom, row, col, data))
+            except:
+                raise IOError
 
 
     def get_tiledata(self, zoom, row, col):
         with self.db_connection as db_connection:
             cursor = db_connection.cursor()
-            cursor.execute("""
-                SELECT tile_data from tiles WHERE
-                zoom_level=? AND tile_row=? AND tile_column=?;
-            """, (str(zoom), str(row), str(col)))
+            try:
+                cursor.execute("""
+                    SELECT tile_data from tiles WHERE
+                    zoom_level=? AND tile_row=? AND tile_column=?;
+                """, (str(zoom), str(row), str(col)))
+            except:
+                raise IOError
             if self.compression:
                 data = blosc.unpack_array(cursor.fetchone()[0])
             else:
@@ -190,17 +208,8 @@ def adapt_array(arr):
     http://stackoverflow.com/a/31312102/190597 (SoulNibbler)
     """
     out = io.BytesIO()
-    np.save(out, arr)
-    out.seek(0)
-    return sqlite3.Binary(out.read())
-def convert_array(text):
-    out = io.BytesIO(text)
-    out.seek(0)
-    return np.load(out)
-# Converts np.array to TEXT when inserting
-sqlite3.register_adapter(np.ndarray, adapt_array)
-# Converts TEXT to np.array when selecting
-sqlite3.register_converter("array", convert_array)
+    np.save(out, arr)https://github.com/GitHubRGI/geopackage-python
+
 
 
 content_description = """
