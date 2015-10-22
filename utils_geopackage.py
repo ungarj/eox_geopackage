@@ -24,11 +24,11 @@ class EOGeopackage():
         data_type,
         projection,
         overwrite=False,
-        compression="blosclz"
+        compression="lz4"
         ):
         """
         Initializes geopackage file and creates EOGeopackage object.
-        Supported compressions (default=blosclz):
+        Supported compressions (default=lz4):
          - blosclz
          - lz4
          - lz4hc

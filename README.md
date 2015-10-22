@@ -14,7 +14,34 @@ pros:
 - time series storage
 
 cons:
-- no compression (i.e. 100 256x256 sized arrays take ca. 50MB disk space); try [blz](http://blz.pydata.org/blz-manual/index.html)
+- ~~no compression (i.e. 100 256x256 sized arrays take ca. 50MB disk space); try [blz](http://blz.pydata.org/blz-manual/index.html)~~
+
+#### compression performance
+
+Using random integer numpy arrays and compression options from the [blosc library](http://python-blosc.blosc.org/index.html).
+
+##### 2D: 100 tiles, 256 x 256
+
+| compression   | size (KB) |  time (s) |
+| ------------- |----------:| ---------:|
+| uncompressed  |    51,035 |     1.815 |
+| blosclz       |     6,622 |     0.677 |
+| lz4           |     6,622 |     0.632 |
+| lz4hc         |     6,622 |     0.903 |
+| snappy        |     8,522 |     0.877 |
+| zlib          |     6,522 |     1.386 |
+
+##### 3D: 100 tiles, 256 x 256 x 10
+
+| compression   | size (KB) |  time (s) |
+| ------------- |----------:| ---------:|
+| uncompressed  |   510,035 |    13.674 |
+| blosclz       |    65,830 |     4.029 |
+| lz4           |    65,672 |     3.603 |
+| lz4hc         |    65,622 |    92.097 |
+| snappy        |   124,322 |     4.999 |
+| zlib          |    64,422 |     9.112 |
+
 
 ### save as TIFF
 * [OGC Tiled Elevation Extension (PDF)](https://www.google.at/url?sa=t&rct=j&q=&esrc=s&source=web&cd=4&sqi=2&ved=0CDAQFjADahUKEwiX6aX887zIAhVK7hoKHbfuBts&url=https%3A%2F%2Fportal.opengeospatial.org%2Ffiles%2F%3Fartifact_id%3D63289&usg=AFQjCNHoo85tj0neUFP9jmwBGs9dv6qmpA&sig2=XpINIwbEDLFJ_6Snyk5Ivg&bvm=bv.104819420,d.d2s&cad=rja)

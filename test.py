@@ -83,6 +83,7 @@ def run_tests(output_file):
     # Performance test.
     zoom = 10
     tilesize = 10
+    testarray_size = (255, 255, 10)
 
     # Uncompressed data.
     # =================
@@ -91,7 +92,7 @@ def run_tests(output_file):
     start = datetime.now()
     for row in range(0, tilesize):
         for col in range(0, tilesize):
-            test_data = np.random.randint(255, size=(255, 255))
+            test_data = np.random.randint(255, size=testarray_size)
             test_geopackage.insert_tile(zoom, row, col, test_data)
     finish = datetime.now()
     tdelta = finish - start
@@ -104,7 +105,7 @@ def run_tests(output_file):
     print "uncompressed filesize: %s KB (%s seconds)" %(filesize_mb, seconds)
 
     # Test read data.
-    test_data = np.random.rand(255, 255)
+    test_data = np.random.randint(255, size=testarray_size)
     zoom, row, col = (3, 5, 7)
     try:
         test_geopackage.insert_tile(zoom, row, col, test_data)
@@ -140,7 +141,7 @@ def run_tests(output_file):
         zoom = 10
         for row in range(0, tilesize):
             for col in range(0, tilesize):
-                test_data = np.random.randint(255, size=(255, 255))
+                test_data = np.random.randint(255, size=testarray_size)
                 test_geopackage.insert_tile(zoom, row, col, test_data)
         finish = datetime.now()
         tdelta = finish - start
@@ -156,7 +157,7 @@ def run_tests(output_file):
             seconds)
 
         # Test read data.
-        test_data = np.random.rand(255, 255)
+        test_data = np.random.randint(255, size=testarray_size)
         zoom, row, col = (3, 5, 7)
         try:
             test_geopackage.insert_tile(zoom, row, col, test_data)
