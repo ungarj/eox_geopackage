@@ -31,24 +31,77 @@ class EOGeopackage():
         - zlib
     """
 
+
     def __enter__(self):
         return self
+
 
     def __init__(
         self,
         file_path,
-        data_type,
-        srs,
+        mode=None,
+        data_type=None,
+        srs=None,
         overwrite=False,
         compression="lz4"
         ):
         """
         Initializes geopackage file and creates EOGeopackage object.
         """
+        self.file_path = file_path
         try:
-            assert data_type in ("image/TIFF", "xray")
+            assert mode
         except:
-            raise
+            raise AttributeError("please provide mode (r or w)")
+        if mode == 'w':
+            try:
+                assert data_type
+            except:
+                raise AttributeError("data_type not provided")
+            try:
+                assert srs
+            except:
+                assert AttributeError("srs not provided")
+            self.data_type = data_type
+            self.srs = srs
+        elif mode == 'r':
+            # Assert that file exists.
+            try:
+                assert os.path.isfile(self.file_path)
+            except:
+                raise IOError("file '%s' not found" % self.file_path)
+            # Assert that file has the correct schema.
+            try:
+                self.db_connection = connect(self.file_path)
+                assert schema_is_ok(self.file_path)
+            except:
+                raise IOError("not a valid EO Geopackage file")
+            # Read metadata.
+            self.data_type = self.__get_data_type()
+            self.srs = self.__get_srs()
+        else:
+            raise AttributeError("unknown mode %s" % mode)
+        # Assert that data_type is given.
+        try:
+            assert self.data_type
+        except:
+            raise AttributeError("no data_type provided")
+        # Assert that data_type is valid.
+        try:
+            assert self.data_type in ("image/TIFF", "xray")
+        except:
+            raise AttributeError("unknown data_type %s" % self.data_type)
+        # Assert that SRS is given.
+        try:
+            assert self.srs
+        except:
+            raise AttributeError("no SRS provided")
+        # Assert that SRS is valid.
+        try:
+            assert self.srs in ([4326])
+        except:
+            raise AttributeError("unknown SRS %s" % str(self.srs))
+        self.compression = compression
         if compression:
             try:
                 assert compression in (
@@ -59,15 +112,29 @@ class EOGeopackage():
                     "zlib"#
                     )
             except:
-                print "Unknown compression", compression
-                raise
-        self.file_path = file_path
-        self.data_type = data_type
-        self.srs = srs
+                raise AttributeError("Unknown compression %s" % compression)
         self.overwrite = overwrite
         self.db_connection = connect(self.file_path)
-        self.compression = compression
         self.__create_file(overwrite=overwrite)
+
+
+    def __get_data_type(self):
+        db_connection = connect(self.file_path)
+        cursor = db_connection.cursor()
+        cursor.execute("""
+            SELECT identifier from gpkg_contents;
+            """)
+        data_type = cursor.fetchone()[0].split(' ')[0]
+        return data_type
+
+    def __get_srs(self):
+        db_connection = connect(self.file_path)
+        cursor = db_connection.cursor()
+        cursor.execute("""
+            SELECT srs_id from gpkg_contents;
+            """)
+        srs_id = cursor.fetchone()[0]
+        return srs_id
 
 
     def __create_file(self, overwrite=False):
@@ -183,13 +250,15 @@ class EOGeopackage():
     def get_tiledata(self, zoom, row, col):
         with self.db_connection as db_connection:
             cursor = db_connection.cursor()
+            if self.compression:
+                db_connection.text_factory = str
             try:
                 cursor.execute("""
                     SELECT tile_data from tiles WHERE
                     zoom_level=? AND tile_row=? AND tile_column=?;
                 """, (str(zoom), str(row), str(col)))
             except:
-                raise IOError
+                raise
             if self.compression:
                 data = blosc.unpack_array(cursor.fetchone()[0])
             else:
@@ -197,7 +266,7 @@ class EOGeopackage():
             return data
 
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self):
         """Resource cleanup on destruction."""
         self.db_connection.close()
 
@@ -208,14 +277,21 @@ def adapt_array(arr):
     http://stackoverflow.com/a/31312102/190597 (SoulNibbler)
     """
     out = io.BytesIO()
-    np.save(out, arr)https://github.com/GitHubRGI/geopackage-python
-
-
+    np.save(out, arr)
+    out.seek(0)
+    return sqlite3.Binary(out.read())
+def convert_array(text):
+    out = io.BytesIO(text)
+    out.seek(0)
+    return np.load(out)
+# Converts np.array to TEXT when inserting
+sqlite3.register_adapter(np.ndarray, adapt_array)
+# Converts TEXT to np.array when selecting
+sqlite3.register_converter("array", convert_array)
 
 content_description = """
 Experimental EO GPKG raster tiles by EOX IT Services (ju@eox.at)
 """
-
 
 ref_sys_wkt = {
     4326: """
@@ -308,3 +384,21 @@ sql_create_tables = OrderedDict([
     );
     """)
     ])
+
+
+def schema_is_ok(geopackage_path):
+    """
+    Checks if all necessary tables exist.
+    """
+    with connect(geopackage_path) as db_connection:
+        cursor = db_connection.cursor()
+        for table in sql_create_tables:
+            cursor.execute("""
+                SELECT name FROM sqlite_master WHERE type='table' AND name='%s'
+                """ %(table)
+            )
+            if cursor.fetchone():
+                pass
+            else:
+                return table
+    return True

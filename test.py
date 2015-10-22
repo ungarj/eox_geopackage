@@ -9,6 +9,7 @@ from datetime import datetime
 import zlib
 
 from utils_geopackage import *
+import utils_geopackage
 
 def main(args):
 
@@ -19,14 +20,14 @@ def main(args):
     except:
         raise
     finally:
-        os.remove(output_file)
-        pass
+        if os.path.isfile(output_file):
+            os.remove(output_file)
 
 def run_tests(output_file):
 
 
     # Test if file is created.
-    first_geopackage = EOGeopackage(output_file, "xray", 4326)
+    first_geopackage = EOGeopackage(output_file, "w", "xray", 4326)
     try:
         assert os.path.isfile(output_file)
         first_creation_time = os.path.getctime(output_file)
@@ -42,6 +43,7 @@ def run_tests(output_file):
     # Test if file is overwritten.
     second_geopackage = EOGeopackage(
         output_file,
+        "w",
         "image/TIFF",
         4326,
         overwrite=True
@@ -63,7 +65,7 @@ def run_tests(output_file):
         raise
 
     # Test if file is updated (creation time must stay the same).
-    updated_geopackage = EOGeopackage(output_file, "xray", 4326)
+    updated_geopackage = EOGeopackage(output_file, "r")
     try:
         assert os.path.isfile(output_file)
         updated_creation_time = os.path.getctime(output_file)
@@ -80,15 +82,25 @@ def run_tests(output_file):
     except:
         raise
 
+    ########
+    # XRAY #
+    ########
     # Performance test.
     zoom = 10
-    tilesize = 10
-    testarray_size = (255, 255, 10)
+    tilesize = 2
+    testarray_size = (255, 255, 3)
 
     # Uncompressed data.
     # =================
     print "inserting %s uncompresseed tiles..." %(tilesize*tilesize)
-    test_geopackage = EOGeopackage(output_file, "xray", 4326, overwrite=True, compression=None)
+    test_geopackage = EOGeopackage(
+        output_file,
+        "w",
+        "xray",
+        4326,
+        overwrite=True,
+        compression=None
+        )
     start = datetime.now()
     for row in range(0, tilesize):
         for col in range(0, tilesize):
@@ -120,7 +132,7 @@ def run_tests(output_file):
         raise
 
 
-    # Comressed data.
+    # Compressed data.
     # ===============
     for compression in (
         "blosclz",
@@ -132,6 +144,7 @@ def run_tests(output_file):
         print "inserting %s %s compressed tiles..." %(tilesize*tilesize, compression)
         test_geopackage = EOGeopackage(
             output_file,
+            "w",
             "xray",
             4326,
             overwrite=True,
@@ -171,6 +184,19 @@ def run_tests(output_file):
         except:
             print type(test_read)
             raise
+
+    # Open geopackage in read mode.
+    test_geopackage = None
+    test_geopackage = EOGeopackage(output_file, 'r')
+    assert test_geopackage.srs == 4326
+    assert test_geopackage.data_type == "xray"
+    assert isinstance(test_geopackage.get_tiledata(zoom, row, col), np.ndarray)
+
+    ##############
+    # image/TIFF #
+    ##############
+
+    
 
 
 def schema_is_ok(geopackage):
