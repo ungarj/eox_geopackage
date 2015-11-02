@@ -4,9 +4,9 @@ Extended Geopackage (*.gpkgx) storing a tile set pyramid while keeping the origi
 
 It shall not be limited to 8bit (as in PNG and JPEG) or use lossy compression (JPEG).
 
-## variations
+## formats
 
-### save as numpy array
+### numpy array
 * [insert numpy into sqlite3](http://stackoverflow.com/questions/18621513/python-insert-numpy-array-into-sqlite3-database)
 * [xray - labeled arrays](http://xray.readthedocs.org/en/stable/examples/quick-overview.html#indexing)
 
@@ -42,9 +42,12 @@ Using random integer numpy arrays and compression options from the [blosc librar
 | snappy        |   124,322 |     4.999 |
 | zlib          |    64,422 |     9.112 |
 
+TODO: [use bloscpac](http://python-blosc.blosc.org/tutorial.html#packing-numpy-arrays-with-bloscpack)
 
-### save as TIFF
+### TIFF
 * [OGC Tiled Elevation Extension (PDF)](https://www.google.at/url?sa=t&rct=j&q=&esrc=s&source=web&cd=4&sqi=2&ved=0CDAQFjADahUKEwiX6aX887zIAhVK7hoKHbfuBts&url=https%3A%2F%2Fportal.opengeospatial.org%2Ffiles%2F%3Fartifact_id%3D63289&usg=AFQjCNHoo85tj0neUFP9jmwBGs9dv6qmpA&sig2=XpINIwbEDLFJ_6Snyk5Ivg&bvm=bv.104819420,d.d2s&cad=rja)
+
+### JPEG2000
 
 ## to be researched
 * storing metadata masks in tiles as well

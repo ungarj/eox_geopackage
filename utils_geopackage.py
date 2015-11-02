@@ -9,6 +9,12 @@ import numpy as np
 import os
 import io
 import blosc
+from sqlite3 import Binary
+from PIL import Image
+try:
+    from cStringIO import StringIO as ioBuffer
+except ImportError:
+    from io import BytesIO as ioBuffer
 
 class EOGeopackage():
     """
@@ -22,7 +28,17 @@ class EOGeopackage():
     - overwrite: either False (just insert tiles which don't yet exist) or True
       (delete source file first).
     - compression: compression used.
-      - image/TIFF supported compressions: TBD
+      - image/TIFF supported compressions:
+        - tiff_ccitt
+        - group3
+        - group4
+        - tiff_jpeg
+        - tiff_adobe_deflate
+        - tiff_thunderscan
+        - tiff_deflate
+        - tiff_sgilog
+        - tiff_sgilog24
+        - tiff_raw_16
       - xray supported compressions (default=lz4):
         - blosclz
         - lz4
@@ -43,7 +59,7 @@ class EOGeopackage():
         data_type=None,
         srs=None,
         overwrite=False,
-        compression="lz4"
+        compression=None
         ):
         """
         Initializes geopackage file and creates EOGeopackage object.
@@ -102,20 +118,44 @@ class EOGeopackage():
         except:
             raise AttributeError("unknown SRS %s" % str(self.srs))
         self.compression = compression
-        if compression:
-            try:
-                assert compression in (
-                    "blosclz",
-                    "lz4",
-                    "lz4hc",
-                    "snappy",
-                    "zlib"#
-                    )
-            except:
-                raise AttributeError("Unknown compression %s" % compression)
+        if self.data_type == "xray":
+            if compression:
+                try:
+                    assert compression in (
+                        "blosclz",
+                        "lz4",
+                        "lz4hc",
+                        "snappy",
+                        "zlib"
+                        )
+                except:
+                    raise AttributeError("Unknown compression %s" % compression)
+            else:
+                compression="lz4"
+        if self.data_type == "image/TIFF":
+            if compression:
+                try:
+                    assert compression in (
+                        "tiff_ccitt",
+                        "group3",
+                        "group4",
+                        "tiff_jpeg",
+                        "tiff_adobe_deflate",
+                        "tiff_thunderscan",
+                        "tiff_deflate",
+                        "tiff_sgilog",
+                        "tiff_sgilog24",
+                        "tiff_raw_16"
+                        )
+                except:
+                    raise AttributeError("Unknown compression %s" % compression)
+            else:
+                compression=None
         self.overwrite = overwrite
         self.db_connection = connect(self.file_path)
-        self.__create_file(overwrite=overwrite)
+        if mode != "r":
+            self.__create_file(overwrite=overwrite)
+
 
 
     def __get_data_type(self):
@@ -206,13 +246,16 @@ class EOGeopackage():
                 )
             except:
                 raise
-                pass
+
 
             # Tiles table.
-            if self.compression:
-                tiles_data_type = "TEXT"
-            else:
+
+            if self.data_type == "xray":
                 tiles_data_type = "ARRAY"
+                if self.compression:
+                    tiles_data_type = "TEXT"
+            elif self.data_type in ("image/TIFF", "image/JPEG2000"):
+                tiles_data_type = "BLOB"
             try:
                 cursor.execute("""
                     CREATE TABLE IF NOT EXISTS tiles (
@@ -233,10 +276,31 @@ class EOGeopackage():
         with self.db_connection as db_connection:
             cursor = db_connection.cursor()
             compression = self.compression
-            if compression:
+            data_type = self.data_type
+            if compression and (data_type == "xray"):
                 db_connection.text_factory = str
                 data_compressed = blosc.pack_array(data, cname=compression)
                 data = data_compressed
+            if data_type == "image/TIFF":
+                try:
+                    assert data.dtype == "uint8"
+                except:
+                    raise TypeError("dtype %s not supported" % data.dtype)
+                image = Image.fromarray(np.uint8(data))
+                buf = ioBuffer()
+                image.save(buf, "tiff")
+                buf.seek(0)
+                data = Binary(buf.read())
+            if data_type == "image/JPEG2000":
+                try:
+                    assert data.dtype == "uint8"
+                except:
+                    raise TypeError("dtype %s not supported" % data.dtype)
+                image = Image.fromarray(np.uint8(data))
+                buf = ioBuffer()
+                image.save(buf, "j2k")
+                buf.seek(0)
+                data = Binary(buf.read())
             try:
                 cursor.execute("""
                     INSERT INTO tiles
@@ -244,13 +308,14 @@ class EOGeopackage():
                         VALUES (?,?,?,?)
                 """, (zoom, row, col, data))
             except:
-                raise IOError
+                raise
 
 
     def get_tiledata(self, zoom, row, col):
         with self.db_connection as db_connection:
             cursor = db_connection.cursor()
-            if self.compression:
+            data_type = self.data_type
+            if self.compression and (data_type == "xray"):
                 db_connection.text_factory = str
             try:
                 cursor.execute("""
@@ -259,10 +324,15 @@ class EOGeopackage():
                 """, (str(zoom), str(row), str(col)))
             except:
                 raise
-            if self.compression:
+            if self.compression and (data_type == "xray"):
                 data = blosc.unpack_array(cursor.fetchone()[0])
             else:
                 data = cursor.fetchone()[0]
+            if data_type == "image/TIFF":
+                # img = Image.frombuffer("L", (255, 255), data)
+                img = Image.open(ioBuffer(data))
+                print img.format, img.mode
+                data = np.array(img)
             return data
 
 
