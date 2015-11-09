@@ -29,16 +29,17 @@ class EOGeopackage():
       (delete source file first).
     - compression: compression used.
       - image/TIFF supported compressions:
-        - tiff_ccitt
-        - group3
-        - group4
-        - tiff_jpeg
+        # - tiff_ccitt
+        # - group3
+        # - group4
+        # - tiff_jpeg
         - tiff_adobe_deflate
-        - tiff_thunderscan
+        # - tiff_thunderscan
         - tiff_deflate
-        - tiff_sgilog
-        - tiff_sgilog24
-        - tiff_raw_16
+        # - tiff_sgilog
+        # - tiff_sgilog24
+        # - tiff_raw_16
+        - tiff_lzw
       - xray supported compressions (default=lz4):
         - blosclz
         - lz4
@@ -136,16 +137,16 @@ class EOGeopackage():
             if compression:
                 try:
                     assert compression in (
-                        "tiff_ccitt",
-                        "group3",
-                        "group4",
-                        "tiff_jpeg",
+                        # "tiff_ccitt",
+                        # "group3",
+                        # "group4",
+                        # "tiff_jpeg",
                         "tiff_adobe_deflate",
-                        "tiff_thunderscan",
+                        # "tiff_thunderscan",
                         "tiff_deflate",
-                        "tiff_sgilog",
-                        "tiff_sgilog24",
-                        "tiff_raw_16",
+                        # "tiff_sgilog",
+                        # "tiff_sgilog24",
+                        # "tiff_raw_16",
                         "tiff_lzw"
                         )
                 except:
