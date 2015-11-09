@@ -83,163 +83,17 @@ def run_tests(output_file):
     except:
         raise
 
-    ########
-    # XRAY #
-    ########
-    # Performance test.
+    # Performance test variables.
     zoom = 10
-    tilesize = 3
+    tilesize = 10
 
-
-    # 2D #
-    ######
-    testarray_size = (255, 255)
-
-    # Compressed data.
-    # ===============
-    for compression in (
-        None,
-        "blosclz",
-        "lz4",
-        "lz4hc",
-        "snappy",
-        "zlib"
-        ):
-        # print "inserting %s %s compressed tiles..." %(
-        #     tilesize*tilesize,
-        #     compression
-        #     )
-        test_geopackage = EOGeopackage(
-            output_file,
-            "w",
-            "xray",
-            4326,
-            overwrite=True,
-            compression=compression
-            )
-        start = datetime.now()
-        zoom = 10
-        for row in range(0, tilesize):
-            for col in range(0, tilesize):
-                test_data = np.random.randint(255, size=testarray_size)
-                test_geopackage.insert_tile(zoom, row, col, test_data)
-        finish = datetime.now()
-        tdelta = finish - start
-        seconds = tdelta.total_seconds()
-
-        # Get file size.
-        filestat = os.stat(output_file)
-        filesize = filestat.st_size
-        filesize_mb = filesize/1024
-        print "'%s', %s, %s" %(
-            compression,
-            filesize_mb,
-            seconds)
-
-        # Test read data.
-        test_data = np.random.randint(255, size=testarray_size)
-        zoom, row, col = (3, 5, 7)
-        try:
-            test_geopackage.insert_tile(zoom, row, col, test_data)
-            pass
-        except:
-            raise
-        try:
-            test_read = test_geopackage.get_tiledata(zoom, row, col)
-            assert isinstance(test_read, np.ndarray)
-        except:
-            raise
-        try:
-            np.testing.assert_allclose(test_read, test_data)
-        except:
-            raise
-
-    # Open geopackage in read mode.
-    test_geopackage = None
-    test_geopackage = EOGeopackage(output_file, 'r')
-    assert test_geopackage.srs == 4326
-    assert test_geopackage.data_type == "xray"
-    # TODO: test failing!
-    # assert isinstance(test_geopackage.get_tiledata(zoom, row, col), np.ndarray)
-
-
-    # 3D #
-    ######
-    testarray_size = (255, 255, 3)
-
-    # Compressed data.
-    # ===============
-    for compression in (
-        None,
-        "blosclz",
-        "lz4",
-        "lz4hc",
-        "snappy",
-        "zlib"
-        ):
-        # print "inserting %s %s compressed 3D tiles..." %(
-        #     tilesize*tilesize,
-        #     compression
-        #     )
-        test_geopackage = EOGeopackage(
-            output_file,
-            "w",
-            "xray",
-            4326,
-            overwrite=True,
-            compression=compression
-            )
-        start = datetime.now()
-        zoom = 10
-        for row in range(0, tilesize):
-            for col in range(0, tilesize):
-                test_data = np.random.randint(255, size=testarray_size)
-                test_geopackage.insert_tile(zoom, row, col, test_data)
-        finish = datetime.now()
-        tdelta = finish - start
-        seconds = tdelta.total_seconds()
-
-        # Get file size.
-        filestat = os.stat(output_file)
-        filesize = filestat.st_size
-        filesize_mb = filesize/1024
-        print "'%s', %s, %s" %(
-            compression,
-            filesize_mb,
-            seconds)
-
-        # Test read data.
-        test_data = np.random.randint(255, size=testarray_size)
-        zoom, row, col = (3, 5, 7)
-        try:
-            test_geopackage.insert_tile(zoom, row, col, test_data)
-            pass
-        except:
-            raise
-        try:
-            test_read = test_geopackage.get_tiledata(zoom, row, col)
-            assert isinstance(test_read, np.ndarray)
-        except:
-            raise
-        try:
-            np.testing.assert_allclose(test_read, test_data)
-        except:
-            raise
-
-    # Open geopackage in read mode.
-    test_geopackage = None
-    test_geopackage = EOGeopackage(output_file, 'r')
-    assert test_geopackage.srs == 4326
-    assert test_geopackage.data_type == "xray"
-    # TODO: test failing!
-    # assert isinstance(test_geopackage.get_tiledata(zoom, row, col), np.ndarray)
 
     ##############
     # image/TIFF #
     ##############
 
     testarray_size = (255, 255)
-
+    print "TIFF"
     for compression in (
         None,
         # "tiff_ccitt",
@@ -266,8 +120,11 @@ def run_tests(output_file):
             overwrite=True,
             compression=compression
             )
-        start = datetime.now()
+
         zoom = 10
+
+        # Write data
+        start = datetime.now()
         for row in range(0, tilesize):
             for col in range(0, tilesize):
                 test_data = np.uint8(np.random.randint(
@@ -276,17 +133,24 @@ def run_tests(output_file):
                     ))
                 test_geopackage.insert_tile(zoom, row, col, test_data)
         finish = datetime.now()
-        tdelta = finish - start
-        seconds = tdelta.total_seconds()
+        write_time = (finish - start).total_seconds()
+
+        # Read data.
+        for row in range(0, tilesize):
+            for col in range(0, tilesize):
+                test_data = test_geopackage.get_tiledata(zoom, row, col)
+        finish = datetime.now()
+        read_time = (finish - start).total_seconds()
 
         # Get file size.
         filestat = os.stat(output_file)
         filesize = filestat.st_size
         filesize_mb = filesize/1024
-        print "'%s', %s, %s" %(
+        print "'%s', %s, %s, %s" %(
             compression,
             filesize_mb,
-            seconds)
+            write_time,
+            read_time)
 
         # Test read data.
         try:
@@ -304,6 +168,266 @@ def run_tests(output_file):
             np.testing.assert_allclose(test_read, test_data)
         except:
             raise
+
+
+    ########
+    # XRAY #
+    ########
+
+    # single band #
+    ######
+    testarray_size = (255, 255)
+
+    print "numpy single band"
+    # Compressed data.
+    # ===============
+    for compression in (
+        None,
+        "blosclz",
+        "lz4",
+        "lz4hc",
+        "snappy",
+        "zlib"
+        ):
+        # print "inserting %s %s compressed tiles..." %(
+        #     tilesize*tilesize,
+        #     compression
+        #     )
+        test_geopackage = EOGeopackage(
+            output_file,
+            "w",
+            "xray",
+            4326,
+            overwrite=True,
+            compression=compression
+            )
+
+        zoom = 10
+
+        # Write data.
+        start = datetime.now()
+        for row in range(0, tilesize):
+            for col in range(0, tilesize):
+                test_data = np.random.randint(255, size=testarray_size)
+                test_geopackage.insert_tile(zoom, row, col, test_data)
+        finish = datetime.now()
+        write_time = (finish - start).total_seconds()
+
+        # Read data.
+        start = datetime.now()
+        for row in range(0, tilesize):
+            for col in range(0, tilesize):
+                test_data = test_geopackage.get_tiledata(zoom, row, col)
+        finish = datetime.now()
+        read_time = (finish - start).total_seconds()
+
+        # Get file size.
+        filestat = os.stat(output_file)
+        filesize = filestat.st_size
+        filesize_mb = filesize/1024
+        print "'%s', %s, %s, %s" %(
+            compression,
+            filesize_mb,
+            write_time,
+            read_time)
+
+        # Test read data.
+        test_data = np.random.randint(255, size=testarray_size)
+        zoom, row, col = (3, 5, 7)
+        try:
+            test_geopackage.insert_tile(zoom, row, col, test_data)
+            pass
+        except:
+            raise
+        try:
+            test_read = test_geopackage.get_tiledata(zoom, row, col)
+            assert isinstance(test_read, np.ndarray)
+        except:
+            raise
+        try:
+            np.testing.assert_allclose(test_read, test_data)
+        except:
+            raise
+
+    # Open geopackage in read mode.
+    test_geopackage = None
+    test_geopackage = EOGeopackage(output_file, 'r')
+    assert test_geopackage.srs == 4326
+    assert test_geopackage.data_type == "xray"
+    # TODO: test failing!
+    # assert isinstance(test_geopackage.get_tiledata(zoom, row, col), np.ndarray)
+
+
+    # RGB #
+    ######
+    testarray_size = (255, 255, 3)
+
+    print "numpy RGB"
+    # Compressed data.
+    # ===============
+    for compression in (
+        None,
+        "blosclz",
+        "lz4",
+        "lz4hc",
+        "snappy",
+        "zlib"
+        ):
+        # print "inserting %s %s compressed 3D tiles..." %(
+        #     tilesize*tilesize,
+        #     compression
+        #     )
+        test_geopackage = EOGeopackage(
+            output_file,
+            "w",
+            "xray",
+            4326,
+            overwrite=True,
+            compression=compression
+            )
+
+        zoom = 10
+
+        # Write data.
+        start = datetime.now()
+        for row in range(0, tilesize):
+            for col in range(0, tilesize):
+                test_data = np.random.randint(255, size=testarray_size)
+                test_geopackage.insert_tile(zoom, row, col, test_data)
+        finish = datetime.now()
+        write_time = (finish - start).total_seconds()
+
+        # Read data.
+        start = datetime.now()
+        for row in range(0, tilesize):
+            for col in range(0, tilesize):
+                test_data = test_geopackage.get_tiledata(zoom, row, col)
+        finish = datetime.now()
+        read_time = (finish - start).total_seconds()
+
+        # Get file size.
+        filestat = os.stat(output_file)
+        filesize = filestat.st_size
+        filesize_mb = filesize/1024
+        print "'%s', %s, %s, %s" %(
+            compression,
+            filesize_mb,
+            write_time,
+            read_time)
+
+        # Test read data.
+        test_data = np.random.randint(255, size=testarray_size)
+        zoom, row, col = (3, 5, 7)
+        try:
+            test_geopackage.insert_tile(zoom, row, col, test_data)
+            pass
+        except:
+            raise
+        try:
+            test_read = test_geopackage.get_tiledata(zoom, row, col)
+            assert isinstance(test_read, np.ndarray)
+        except:
+            raise
+        try:
+            np.testing.assert_allclose(test_read, test_data)
+        except:
+            raise
+
+    # Open geopackage in read mode.
+    test_geopackage = None
+    test_geopackage = EOGeopackage(output_file, 'r')
+    assert test_geopackage.srs == 4326
+    assert test_geopackage.data_type == "xray"
+    # TODO: test failing!
+    # assert isinstance(test_geopackage.get_tiledata(zoom, row, col), np.ndarray)
+
+
+    # RGB 3D #
+    ######
+    testarray_size = (255, 255, 3, 10)
+
+    print "numpy RGB 3D"
+    # Compressed data.
+    # ===============
+    for compression in (
+        None,
+        "blosclz",
+        "lz4",
+        "lz4hc",
+        "snappy",
+        "zlib"
+        ):
+        # print "inserting %s %s compressed 3D tiles..." %(
+        #     tilesize*tilesize,
+        #     compression
+        #     )
+        test_geopackage = EOGeopackage(
+            output_file,
+            "w",
+            "xray",
+            4326,
+            overwrite=True,
+            compression=compression
+            )
+
+        zoom = 10
+
+        # Write data.
+        start = datetime.now()
+        for row in range(0, tilesize):
+            for col in range(0, tilesize):
+                test_data = np.random.randint(255, size=testarray_size)
+                test_geopackage.insert_tile(zoom, row, col, test_data)
+        finish = datetime.now()
+        write_time = (finish - start).total_seconds()
+
+        # Read data.
+        start = datetime.now()
+        for row in range(0, tilesize):
+            for col in range(0, tilesize):
+                test_data = test_geopackage.get_tiledata(zoom, row, col)
+                tiles = [
+                    i
+                    for i in test_data
+                    ]
+        finish = datetime.now()
+        read_time = (finish - start).total_seconds()
+
+        # Get file size.
+        filestat = os.stat(output_file)
+        filesize = filestat.st_size
+        filesize_mb = filesize/1024
+        print "'%s', %s, %s, %s" %(
+            compression,
+            filesize_mb,
+            write_time,
+            read_time)
+
+        # Test read data.
+        test_data = np.random.randint(255, size=testarray_size)
+        zoom, row, col = (3, 5, 7)
+        try:
+            test_geopackage.insert_tile(zoom, row, col, test_data)
+            pass
+        except:
+            raise
+        try:
+            test_read = test_geopackage.get_tiledata(zoom, row, col)
+            assert isinstance(test_read, np.ndarray)
+        except:
+            raise
+        try:
+            np.testing.assert_allclose(test_read, test_data)
+        except:
+            raise
+
+    # Open geopackage in read mode.
+    test_geopackage = None
+    test_geopackage = EOGeopackage(output_file, 'r')
+    assert test_geopackage.srs == 4326
+    assert test_geopackage.data_type == "xray"
+    # TODO: test failing!
+    # assert isinstance(test_geopackage.get_tiledata(zoom, row, col), np.ndarray)
 
 
 def schema_is_ok(geopackage):
