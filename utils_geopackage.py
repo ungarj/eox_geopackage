@@ -10,7 +10,7 @@ import os
 import io
 import blosc
 from sqlite3 import Binary
-from PIL import Image
+from PIL import Image, TiffImagePlugin
 try:
     from cStringIO import StringIO as ioBuffer
 except ImportError:
@@ -145,7 +145,8 @@ class EOGeopackage():
                         "tiff_deflate",
                         "tiff_sgilog",
                         "tiff_sgilog24",
-                        "tiff_raw_16"
+                        "tiff_raw_16",
+                        "tiff_lzw"
                         )
                 except:
                     raise AttributeError("Unknown compression %s" % compression)
@@ -288,7 +289,12 @@ class EOGeopackage():
                     raise TypeError("dtype %s not supported" % data.dtype)
                 image = Image.fromarray(np.uint8(data))
                 buf = ioBuffer()
-                image.save(buf, "tiff")
+                if compression == "tiff_lzw":
+                    TiffImagePlugin.WRITE_LIBTIFF = True
+                    image.save(buf, "TIFF", compression=compression)
+                    TiffImagePlugin.WRITE_LIBTIFF = False
+                else:
+                    image.save(buf, "TIFF", compression=compression)
                 buf.seek(0)
                 data = Binary(buf.read())
             if data_type == "image/JPEG2000":
@@ -331,7 +337,6 @@ class EOGeopackage():
             if data_type == "image/TIFF":
                 # img = Image.frombuffer("L", (255, 255), data)
                 img = Image.open(ioBuffer(data))
-                print img.format, img.mode
                 data = np.array(img)
             return data
 

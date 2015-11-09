@@ -93,7 +93,7 @@ def run_tests(output_file):
 
     # Uncompressed data.
     # =================
-    print "inserting %s uncompresseed tiles..." %(tilesize*tilesize)
+    print "inserting %s uncompresseed 3D tiles..." %(tilesize*tilesize)
     test_geopackage = EOGeopackage(
         output_file,
         "w",
@@ -145,7 +145,10 @@ def run_tests(output_file):
         "snappy",
         "zlib"
         ):
-        print "inserting %s %s compressed tiles..." %(tilesize*tilesize, compression)
+        print "inserting %s %s compressed 3D tiles..." %(
+            tilesize*tilesize,
+            compression
+            )
         test_geopackage = EOGeopackage(
             output_file,
             "w",
@@ -205,34 +208,100 @@ def run_tests(output_file):
 
     testarray_size = (255, 255)
 
-    test_geopackage = EOGeopackage(
-        output_file,
-        "w",
-        "image/TIFF",
-        4326,
-        overwrite=True
-        )
-    test_data = np.uint8(np.random.randint(255, size=testarray_size))
-    zoom, row, col = (3, 5, 7)
-    try:
-        test_geopackage.insert_tile(zoom, row, col, test_data)
-        print "inserting image/TIFF ok."
-    except:
-        raise
-    try:
-        test_read = test_geopackage.get_tiledata(zoom, row, col)
-        assert isinstance(test_read, np.ndarray)
-    except:
-        raise
-    try:
-        np.testing.assert_allclose(test_read, test_data)
-    except:
-        from matplotlib import pyplot as plt
-        plt.imshow(test_read, interpolation='nearest')
-        plt.show()
-        plt.imshow(test_data, interpolation='nearest')
-        plt.show()
-        raise
+    for compression in (
+        None,
+        # "tiff_ccitt",
+        # "group3",
+        # "group4",
+        # "tiff_jpeg",
+        "tiff_adobe_deflate",
+        # "tiff_thunderscan",
+        "tiff_deflate",
+        # "tiff_sgilog",
+        # "tiff_sgilog24",
+        # "tiff_raw_16",
+        "tiff_lzw"
+        ):
+        print "inserting %s %s compressed tiles..." %(
+            tilesize*tilesize,
+            compression
+            )
+        test_geopackage = EOGeopackage(
+            output_file,
+            "w",
+            "image/TIFF",
+            4326,
+            overwrite=True,
+            compression=compression
+            )
+        start = datetime.now()
+        zoom = 10
+        for row in range(0, tilesize):
+            for col in range(0, tilesize):
+                test_data = np.uint8(np.random.randint(255, size=testarray_size))
+                test_geopackage.insert_tile(zoom, row, col, test_data)
+        finish = datetime.now()
+        tdelta = finish - start
+        seconds = tdelta.total_seconds()
+
+        # Get file size.
+        filestat = os.stat(output_file)
+        filesize = filestat.st_size
+        filesize_mb = filesize/1024
+        print "%s compressed filesize: %s KB (%s seconds)" %(
+            compression,
+            filesize_mb,
+            seconds)
+
+        # Test read data.
+        try:
+            test_data = np.uint8(np.random.randint(255, size=testarray_size))
+            zoom, row, col = (3, 5, 7)
+            test_geopackage.insert_tile(zoom, row, col, test_data)
+        except:
+            raise
+        try:
+            test_read = test_geopackage.get_tiledata(zoom, row, col)
+            assert isinstance(test_read, np.ndarray)
+        except:
+            raise
+        try:
+            np.testing.assert_allclose(test_read, test_data)
+        except:
+            raise
+
+
+    # # compressed
+    # test_geopackage = EOGeopackage(
+    #     output_file,
+    #     "w",
+    #     "image/TIFF",
+    #     4326,
+    #     overwrite=True,
+    #     compression="tiff_deflate"
+    #     )
+    # test_data = np.uint8(np.random.randint(255, size=testarray_size))
+    # zoom, row, col = (3, 5, 7)
+    # try:
+    #     test_geopackage.insert_tile(zoom, row, col, test_data)
+    #     print "inserting image/TIFF ok."
+    # except:
+    #     raise
+    # try:
+    #     test_read = test_geopackage.get_tiledata(zoom, row, col)
+    #     assert isinstance(test_read, np.ndarray)
+    # except:
+    #     raise
+    # try:
+    #     np.testing.assert_allclose(test_read, test_data)
+    # except:
+    #     from matplotlib import pyplot as plt
+    #     plt.imshow(test_read, interpolation='nearest')
+    #     plt.show()
+    #     plt.imshow(test_data, interpolation='nearest')
+    #     plt.show()
+    #     raise
+
 
 
 def schema_is_ok(geopackage):
