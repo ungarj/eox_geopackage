@@ -331,10 +331,11 @@ class EOGeopackage():
                 """, (str(zoom), str(row), str(col)))
             except:
                 raise
-            if self.compression and (data_type == "xray"):
-                data = blosc.unpack_array(cursor.fetchone()[0])
-            else:
-                data = cursor.fetchone()[0]
+            if data_type == "xray":
+                if self.compression:
+                    data = blosc.unpack_array(cursor.fetchone()[0])
+                else:
+                    data = cursor.fetchone()[0]
             if data_type == "image/TIFF":
                 # img = Image.frombuffer("L", (255, 255), data)
                 img = Image.open(ioBuffer(data))

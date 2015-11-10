@@ -1,0 +1,3 @@
+[submodule "submodules/tilematrix"]
+	path = submodules/tilematrix
+	url = git@github.com:ungarj/tilematrix.git
