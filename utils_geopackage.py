@@ -337,6 +337,7 @@ class EOGeopackage():
                 else:
                     data = cursor.fetchone()[0]
             if data_type == "image/TIFF":
+                data = cursor.fetchone()[0]
                 # img = Image.frombuffer("L", (255, 255), data)
                 img = Image.open(ioBuffer(data))
                 data = np.array(img)
